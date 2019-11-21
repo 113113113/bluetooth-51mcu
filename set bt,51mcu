@@ -1,0 +1,504 @@
+#include "stc15w408.h"
+#include "intrins.h"
+#include "delay.h"
+unsigned char cmd,num,flag;
+
+sbit led=P1^1;
+sbit key=P1^2;
+bit PG;
+void main(void)
+{	PG=0;
+	delay(20);
+	ZSled(5);
+	InitUART();
+	ES=1;
+	EA=1;
+	SendStr("|******************************* \r\n");
+	SendStr("\r\n ");
+	while(1)
+	{
+	  if(!key)
+	  { delay(20);
+		if(!key)
+	    	{	PG=1;			
+					{if(flag==1)
+						{
+							SendStr(" 当前为偶校验状态,开始设置  \r\n");
+							DisPlay2();
+						}
+					else
+					{    
+						  SendStr(" 当前为无校验状态，开始设置  \r\n");
+							DisPlay();
+						PG=0;
+				}}
+			}
+	  }
+
+   }
+
+}
+
+/**************YANSHI********************/
+void delay(unsigned  int t)
+{
+  unsigned char i,j;
+  while(t--)
+  {
+    for(i=0;i<50;i++)
+      for(j=0;j<20;j++);
+  }
+
+}
+
+/*************************** ***
+发送
+ *******************************/
+void SendByte(unsigned char dat)	//
+{ 	    
+		if(flag==1)
+		{		ACC=dat;
+				TB8=P;  
+			 	SBUF=ACC;				
+    }
+		else
+				{
+				SBUF=dat;
+				}
+	while(!TI);
+		TI=0;
+}
+void SendStr(unsigned char *s)
+{
+	while(*s!='\0')
+	{
+	SendByte(*s);
+	s++;
+	}
+	
+}
+
+void UART_SER(void )interrupt 4   
+{
+ unsigned char Temp;
+	if(RI)		
+	{
+		RI=0;
+			Temp=SBUF;
+			SBUF=Temp;
+		if(PG==0)
+		{
+		Temp=SBUF;
+		SendByte(Temp);
+		}
+		else
+		{
+		Temp=SBUF;
+		SBUF=Temp;
+		}
+	}
+	
+	if(TI)		
+	{
+		TI=0;
+
+	}
+
+}
+
+unsigned char ReceiveByte(void)
+{
+	unsigned char RX_BUF;
+	while(!TI);
+	RX_BUF=SBUF;
+	return RX_BUF;
+}
+
+//波特率
+void InitUART(void)
+{
+    cmd=IapReadByte(0x0000);
+    switch(cmd)
+      {
+        case 1:{
+                  BTL9600();	SendStr("| ** 当前波特率9600,无校验*******|\r\n");	
+              }break;
+        case 2:{
+                  BTL4800();SendStr("| **当前波特率4800,无校验*******|\r\n");
+              }break;
+        case 3:{
+                  BTL2400();	SendStr("| **当前波特率2400,无校验*******|\r\n");
+              }break;
+        case 4:{
+                  BTL96002();	SendStr("| **当前波特率9600,偶校验******|\r\n");
+              }break;
+        case 5:{
+                  BTL48002();	SendStr("| **当前波特率4800,偶校验***|\r\n");
+              }break;
+        case 6:{
+                  BTL24002();		SendStr("| **当前波特率2400,偶校验***|\r\n");
+              }break;
+      default:{       
+                  BTL9600();
+              }break;
+      }
+}
+
+void  BTL9600(void)
+{
+	SCON = 0x50;		//8位数据,可变波特率
+	AUXR |= 0x01;		//串口1选择定时器2为波特率发生器
+	AUXR |= 0x04;		//定时器2时钟为Fosc,即1T
+	T2L = 0xE0;		//设定定时初值
+	T2H = 0xFE;		//设定定时初值
+	AUXR |= 0x10;		//启动定时器2
+	flag=0;
+}
+void  BTL4800(void)
+{
+	SCON = 0x50;		//8位数据,可变波特率
+	AUXR |= 0x01;		//串口1选择定时器2为波特率发生器
+	AUXR |= 0x04;		//定时器2时钟为Fosc,即1T
+	T2L = 0xC0;		//设定定时初值
+	T2H = 0xFD;		//设定定时初值
+	AUXR |= 0x10;		//启动定时器2
+	flag=0;
+}
+void  BTL2400(void)
+{
+	SCON = 0x50;		//8位数据,可变波特率
+	AUXR |= 0x01;		//串口1选择定时器2为波特率发生器
+	AUXR |= 0x04;		//定时器2时钟为Fosc,即1T
+	T2L = 0x80;		//设定定时初值
+	T2H = 0xFB;		//设定定时初值
+	AUXR |= 0x10;		//启动定时器2
+	flag=0;
+}
+void  BTL96002(void)
+{
+	SCON = 0xD0;		//9位数据,可变波特率
+	AUXR |= 0x01;		//串口1选择定时器2为波特率发生器
+	AUXR |= 0x04;		//定时器2时钟为Fosc,即1T
+	T2L = 0xE0;		//设定定时初值
+	T2H = 0xFE;		//设定定时初值
+	AUXR |= 0x10;		//启动定时器2
+	flag=1;
+}
+void  BTL48002(void)
+{
+	SCON = 0xD0;		//9位数据,可变波特率
+	AUXR |= 0x01;		//串口1选择定时器2为波特率发生器
+	AUXR |= 0x04;		//定时器2时钟为Fosc,即1T
+	T2L = 0xC0;		//设定定时初值
+	T2H = 0xFD;		//设定定时初值
+	AUXR |= 0x10;		//启动定时器2
+	 flag=1;
+}
+void  BTL24002(void)
+{
+	SCON = 0xD0;		//9位数据,可变波特率
+	AUXR |= 0x01;		//串口1选择定时器2为波特率发生器
+	AUXR |= 0x04;		//定时器2时钟为Fosc,即1T
+	T2L = 0x80;		//设定定时初值
+	T2H = 0xFB;		//设定定时初值
+	AUXR |= 0x10;		//启动定时器2
+	 flag=1;
+}
+
+
+
+
+
+/********************************
+设置
+ *******************************/
+void DisPlay(void)
+{
+  num=ReceiveByte();
+  switch(num)
+        {
+          case '1':
+									{          
+									 SendStr("设置波特率9600， 无校验\r\n");                   
+                   IapEraseSector(0x0000);
+                   IapProgramByte(0x0000,1);
+                   delay(300);
+                   SendStr("|************请断开蓝牙后重启***************\r\n");
+                   ZSledQ(120);
+                   delay(200);
+                   SendStr("AT+BAUD4");
+                   delay(200);
+                     ZSled(5);
+                   }break;
+
+          case '2':{  
+						      SendStr("设置波特率4800， 无校验\r\n");	
+                  IapEraseSector(0x0000);
+                  IapProgramByte(0x0000,2);			
+                  delay(300);
+                  SendStr("|************请断开蓝牙后重启***************\r\n");
+                  ZSledQ(120);
+                  delay(200);
+                  SendStr("AT+BAUD3");
+                  delay(200);
+                    ZSled(5);
+                  }break;
+
+          case '3':{          
+                  SendStr("设置波特率2400， 无校验\r\n");                 
+                  IapEraseSector(0x0000);
+                  IapProgramByte(0x0000,3);
+
+                  delay(200);
+                  SendStr("|************请断开蓝牙后重启***************\r\n");
+                  ZSledQ(120);
+                  delay(200);
+                  SendStr("AT+BAUD2");
+                  delay(200);
+                  ZSled(5);
+                    }break; 
+
+          case '4':{          
+                  SendStr("设置波特率9600，偶校验\r\n");                 
+                  IapEraseSector(0x0000);
+                  IapProgramByte(0x0000,4);
+                  delay(300);
+                  SendStr("|************请断开蓝牙后重启***************\r\n");
+                  ZSledQ(120);
+									SendStr("AT+PE");	
+								  ZSledQ(8);
+									delay(2600);
+                  SendStr("AT+BAUD4");
+                  delay(200);
+                    ZSled(5);
+                    }break;
+
+          case '5':{ 
+					        SendStr("设置波特率4800，偶校验\r\n");	
+                  IapEraseSector(0x0000);
+                  IapProgramByte(0x0000,5);
+			            delay(300);
+                  SendStr("|************请断开蓝牙后重启***************\r\n");
+                  ZSledQ(120);
+                  delay(200);
+									SendStr("AT+PE");
+								  ZSledQ(8);
+									delay(2600);
+                  SendStr("AT+BAUD3");
+                  delay(200);
+                    ZSled(5);
+                    }break;                                             
+
+          case '6':{          
+                  SendStr("设置波特率2400，偶校验\r\n");
+                  IapEraseSector(0x0000);
+                  IapProgramByte(0x0000,6);
+                  delay(200);
+                  ZSledQ(120);
+                  delay(200);
+									SendStr("AT+PE");	
+									ZSledQ(8);
+									delay(2600);
+									SendStr("AT+BAUD2");
+						      delay(200);
+                    ZSled(5);
+                  }break;
+          default: {          
+										SendStr("\r\n ");
+						  
+                    SendStr(" 指令不存在重新输入\r\n ");break;
+                   }
+        }
+
+}
+
+void DisPlay2(void)
+{
+  num=ReceiveByte();
+  switch(num)
+        {
+         
+          case '1':{ 
+									 SendStr("设置波特率9600， 无校验\r\n");
+                   IapEraseSector(0x0000);
+                   IapProgramByte(0x0000,1);
+                   delay(10);
+                   SendStr("|************请断开蓝牙后重启***************\r\n");
+                   ZSledQ(120);
+                   delay(200);
+
+                   SendStr("AT+PN");
+									 ZSledQ(8);
+								   BTL96002();
+									 delay(2600);
+						       SendStr("AT+BAUD4");
+                   delay(200);
+									 
+                     ZSled(5);
+                    }break;
+        
+          case '2':{  
+				          SendStr("设置波特率4800， 无校验\r\n");	
+                  IapEraseSector(0x0000);
+                  IapProgramByte(0x0000,2);
+                  delay(10);
+                  SendStr("|************请断开蓝牙后重启***************\r\n");
+                  ZSledQ(120);
+                  delay(200);
+                   SendStr("AT+PN");
+									 ZSledQ(8);
+								   BTL48002();
+									 delay(2600);
+						       SendStr("AT+BAUD3");
+                   delay(200);
+                    ZSled(5);
+                    }break;
+
+          case '3':{          
+                  SendStr("设置波特率2400， 无校验\r\n");                 
+                  IapEraseSector(0x0000);
+                  IapProgramByte(0x0000,3);
+
+                  delay(10);
+                  SendStr("|************请断开蓝牙后重启***************\r\n");
+                  ZSledQ(120);
+                  delay(200);
+                  SendStr("AT+PN");
+								  ZSledQ(8);
+							    BTL24002();
+								  delay(2600);
+					        SendStr("AT+BAUD2");
+                  delay(200);
+                  ZSled(5);
+                    }break; 
+
+          case '4':{          
+                  SendStr("设置波特率9600，偶校验\r\n");                  
+                  IapEraseSector(0x0000);
+                  IapProgramByte(0x0000,4);
+
+                  delay(10);
+                  SendStr("|************请断开蓝牙后重启***************\r\n");
+                  ZSledQ(120);
+                  delay(200);
+                  SendStr("AT+BAUD4");
+                  delay(200);		
+                    ZSled(5);
+                    }break;
+
+          case '5':{          
+                  SendStr("设置波特率4800，偶校验\r\n");	
+									IapEraseSector(0x0000);
+                  IapProgramByte(0x0000,5);
+                  delay(10);
+                  SendStr("|************请断开蓝牙后重启***************\r\n");
+			            ZSledQ(120);
+									delay(200);
+                  SendStr("AT+BAUD3");
+                  delay(200);
+                    ZSled(5);
+                    }break;                                             
+
+          case '6':{          
+                  SendStr("设置波特率2400，偶校验\r\n");
+                  IapEraseSector(0x0000);
+                  IapProgramByte(0x0000,6);
+                  delay(10);
+                  ZSledQ(120);
+                  delay(200);
+                  SendStr("AT+BAUD2");
+                  delay(200);
+                    ZSled(5);
+                    }break;
+          default:{          
+									SendStr("\r\n ");
+									
+                   SendStr(" 指令不存在重新输入 \r\n ");
+                  }
+        }
+
+}
+/*************************
+ *led指示灯
+ ***************************/
+void ZSled(unsigned char i)
+{
+	unsigned char j;
+	for(j=0;j<i;j++)
+	{
+		led=0;
+
+		delay(250);
+		led=1;
+
+		delay(250);
+	}
+}
+void ZSledQ(unsigned char i)
+{
+	unsigned char j;
+	for(j=0;j<i;j++)
+	{
+		led=0;
+		delay(30);
+		led=1;
+		delay(30);
+	}
+}
+/*************************
+ *eeprom
+ ***************************/
+void IapIdle(void)
+{
+    IAP_CONTR = 0;                 
+    IAP_CMD = 0;                    
+    IAP_TRIG = 0;                  
+    IAP_ADDRH = 0x80;               
+    IAP_ADDRL = 0;
+}
+
+
+unsigned char IapReadByte(unsigned int addr)
+{
+    unsigned char temp;             
+
+    IAP_CONTR = ENABLE_IAP;         
+    IAP_CMD = CMD_READ;            
+    IAP_ADDRL = addr;               
+    IAP_ADDRH = addr >> 8;         
+    IAP_TRIG = 0x5a;               
+    IAP_TRIG = 0xa5;                
+    _nop_();                        
+    temp = IAP_DATA;            
+    IapIdle();                    
+
+    return temp;                    
+}
+
+
+void IapProgramByte(unsigned int addr, unsigned char dat)
+{
+    IAP_CONTR = ENABLE_IAP;         
+    IAP_CMD = CMD_PROGRAM;         
+    IAP_ADDRL = addr;              
+    IAP_ADDRH = addr >> 8;          
+    IAP_DATA = dat;                
+    IAP_TRIG = 0x5a;               
+    IAP_TRIG = 0xa5;               
+    _nop_();                       
+    IapIdle();
+}
+
+void IapEraseSector(unsigned int addr)
+{
+    IAP_CONTR = ENABLE_IAP;        
+    IAP_CMD = CMD_ERASE;            
+    IAP_ADDRL = addr;            
+    IAP_ADDRH = addr >> 8;         
+    IAP_TRIG = 0x5a;               
+    IAP_TRIG = 0xa5;                
+    _nop_();                       
+    IapIdle();
+}
+
+	
